@@ -42,6 +42,8 @@ async def fake_llm_stream_completion(req: CompletionRequest):
 
 async def fake_llm_stream_chat_long_repeat(req: ChatCompletionRequest):
     prompt = "".join([f"{message.role}: {message.content}\n" for message in req.messages])
+    # 即使用户页面断开或发出中断，此处也会继续执行，直到生成完毕
+    # 但用户界面不会显示生成内容
     async for chunk in fake_llm_stream(prompt * 100):
         yield ChatCompletionChoice(
             index=0,
