@@ -6,6 +6,9 @@ from rdify.openai_schemas import *
 from rdify.models import ModelInterface, ModelInfo, ModelCapabilities, ModelRegistry
 from pydify import ChatbotClient
 from pydify.site import DifySite, DifyAppMode
+from pydify import TextGenerationClient
+from pydify.text_generation import TextGenerationEvent
+
 from .schemas import DifySiteModel, DifyAppModel
 from .schemas import DifyEvent
 from rdify.utils.thread_bridge import run_blocking_iter_in_thread
@@ -54,6 +57,16 @@ def get_client(model_name: str):
     config = get_config()
     api_key = get_or_create_new_api_key(model_name)
     client = ChatbotClient(
+        api_key=api_key,
+        base_url=config["DIFY_BASE_URL"],
+    )
+    return client
+
+
+def get_text_gen_client(model_name: str):
+    config = get_config()
+    api_key = get_or_create_new_api_key(model_name)
+    client = TextGenerationClient(
         api_key=api_key,
         base_url=config["DIFY_BASE_URL"],
     )
@@ -122,7 +135,22 @@ async def invoke_chat(req: ChatCompletionRequest):
         )
 
 async def invoke_completion(req: CompletionRequest):
-    site = get_client(req.model)
-    chatbot = site.get_chatbot(req.model)
-    response = await chatbot.complete(req.prompt, stream=req.stream, **req.model_dump())
-    return response
+    client = get_text_gen_client(req.model)
+    content = req.prompt if isinstance(req.prompt, str) else "\n".join(req.prompt)
+
+    def _blocking_iter():
+        for chunk in client.completion(
+            query=content,
+            user=req.user or "unknown",
+            response_mode="streaming",
+        ):
+            yield chunk
+
+    async for chunk in run_blocking_iter_in_thread(_blocking_iter):
+        logger.debug(f"Chunk: {chunk}")
+        yield CompletionChoice(
+            index=0,
+            text=chunk.get('answer', ''),
+            finish_reason=None
+        )
+
