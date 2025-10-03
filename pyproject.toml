@@ -11,12 +11,17 @@ dependencies = [
     "pydify @ git+https://github.com/jayscoder/pydify.git",
     "fastapi[standard] (>=0.118.0,<0.119.0)",
     "pydantic (>=2.11.9,<3.0.0)",
-    "uvicorn (>=0.37.0,<0.38.0)"
+    "uvicorn (>=0.37.0,<0.38.0)",
+    "openai (>=2.1.0,<3.0.0)",
+    "python-dotenv (>=1.1.1,<2.0.0)"
 ]
 
 [tool.poetry]
 packages = [{include = "dify_llvm", from = "src"}]
 
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.4.2"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
