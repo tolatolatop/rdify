@@ -108,51 +108,35 @@ async def completions(req: CompletionRequest):
     if not info or not info.get("capabilities", {}).get("completion", False):
         raise HTTPException(status_code=400, detail="Model not supported for completion")
 
-    resp_id = str(uuid.uuid4())
-    created = int(time.time())
+    resp = CompletionResponse(
+        model=req.model,
+        choices=[]
+    )
 
     if not req.stream:
         chunks = []
         completion_gen = await invoke_completion(req)
         async for chunk in completion_gen:
             chunks.append(chunk)
-        choices = chunks
-        usage = Usage()
-        resp = CompletionResponse(
-            id=resp_id,
-            created=created,
-            model=req.model,
-            choices=choices,
-            usage=usage
-        )
+        resp.choices = chunks
+        resp.usage = Usage()
         return resp
     else:
         async def event_generator():
             completion_gen = await invoke_completion(req)
             async for chunk in completion_gen:
-                msg = {
-                    "id": resp_id,
-                    "object": "text_completion",
-                    "model": req.model,
-                    "created": created,
-                    "choices": [
-                        {
-                            "index": chunk.index,
-                            "text": chunk.text,
-                            "finish_reason": None
-                        }
-                    ]
-                }
-                content = json.dumps(msg)
+                resp.choices = [chunk]
+                content = resp.model_dump_json()
                 yield "data: " + content + "\n\n"
-            finish_msg = {
-                "id": resp_id,
-                "object": "text_completion",
-                "model": req.model,
-                "created": created,
-                "choices": [{"index": 0, "finish_reason": "stop", "text": ""}]
-            }
-            content = json.dumps(finish_msg)
+                logger.debug(f"Chunk: {content}")
+            msg = CompletionChoice(
+                index=0,
+                text="",
+                finish_reason="stop"
+            )
+            resp.choices = [msg]
+            content = resp.model_dump_json()
             yield "data: " + content + "\n\n"
+            logger.debug(f"Finish chunk: {content}")
             yield "data: [DONE]\n\n"
         return StreamingResponse(event_generator(), media_type="text/event-stream")
