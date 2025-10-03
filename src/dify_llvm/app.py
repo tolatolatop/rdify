@@ -43,6 +43,7 @@ async def get_model(model_id: str):
 
 @app.post("/v1/chat/completions")
 async def chat_completions(req: ChatCompletionRequest):
+    logger.debug(f"ChatCompletionRequest: {req}")
     # 校验 model 是否支持 chat
     info = MODEL_REGISTRY.get(req.model)
     if not info or not info.get("capabilities", {}).get("chat", False):
@@ -103,6 +104,7 @@ async def chat_completions(req: ChatCompletionRequest):
 
 @app.post("/v1/completions")
 async def completions(req: CompletionRequest):
+    logger.debug(f"CompletionRequest: {req}")
     # 校验模型是否支持补全
     info = MODEL_REGISTRY.get(req.model)
     if not info or not info.get("capabilities", {}).get("completion", False):

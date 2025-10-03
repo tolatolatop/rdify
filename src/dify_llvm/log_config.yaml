@@ -13,12 +13,12 @@ handlers:
 
   debug_handler:
     class: logging.FileHandler
-    filename: debug.log
+    filename: logs/debug.log
     formatter: standard
 
   test_handler:
     class: logging.FileHandler
-    filename: tests.log
+    filename: logs/tests.log
     formatter: standard
 
 loggers:
