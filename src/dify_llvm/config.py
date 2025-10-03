@@ -1,8 +1,11 @@
 import logging.config
+from dotenv import load_dotenv
 from pathlib import Path
 from ruamel.yaml import YAML
 
 PACKAGE_ROOT = Path(__file__).parent
+
+load_dotenv()
 
 yaml = YAML()
 
