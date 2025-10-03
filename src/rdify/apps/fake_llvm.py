@@ -16,7 +16,7 @@ async def fake_llm_stream(prompt: str):
     text = f"<think> {prompt[::-1]} \n</think> {prompt[:]}"
     for i, ch in enumerate(text.split(" ")):
         yield ch
-        await asyncio.sleep(0.1)  # 模拟生成延迟
+        await asyncio.sleep(0.05)  # 模拟生成延迟
 
 
 async def fake_llm_stream_chat(req: ChatCompletionRequest):
