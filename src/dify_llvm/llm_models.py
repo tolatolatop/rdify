@@ -1,9 +1,12 @@
 from .openai_schemas import *
-from typing import AsyncIterator, List, Union
-from .apps.fake_llvm import fake_llm_stream_chat, fake_llm_stream_completion
+from typing import AsyncIterator
+from .models import ModelRegistry, ModelInterface
 
-MODEL_REGISTRY = {
-    "my-chat-model": ModelInfo(
+
+MODEL_REGISTRY = ModelRegistry()
+
+my_chat_model = ModelInterface(
+    info=ModelInfo(
         id="my-chat-model",
         owned_by="self",
         capabilities=ModelCapabilities(
@@ -12,23 +15,19 @@ MODEL_REGISTRY = {
             stream=True,
         ),
     ),
-    "test-model": ModelInfo(
-        id="test-model",
-        owned_by="self",
-        capabilities=ModelCapabilities(
-            chat=True,
-            completion=True,
-            stream=True,
-        ),
-    ),
-}
+    invoke_chat=None,
+    invoke_completion=None,
+)
 
-def register_model(model_id: str, model_info: ModelInfo):
-    MODEL_REGISTRY[model_id] = model_info
+
+MODEL_REGISTRY.register_model("my-chat-model", my_chat_model)
+
+def register_model(model_id: str, model_info: ModelInterface):
+    MODEL_REGISTRY.register_model(model_id, model_info)
 
 
 async def invoke_chat(req: ChatCompletionRequest, **kwargs) -> AsyncIterator[ChatCompletionChoice]:
-    return fake_llm_stream_chat(req)
+    return MODEL_REGISTRY.get_model_invoke_chat(req.model)(req)
 
 async def invoke_completion(req: CompletionRequest, **kwargs) -> AsyncIterator[CompletionChoice]:
-    return fake_llm_stream_completion(req)
+    return MODEL_REGISTRY.get_model_invoke_completion(req.model)(req)

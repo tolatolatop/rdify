@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 import asyncio
 from typing import AsyncIterator, List, Union
 import time
@@ -11,8 +12,19 @@ from .openai_schemas import *
 from .llm_models import MODEL_REGISTRY
 from .llm_models import invoke_chat, invoke_completion
 from .config import config
+from .apps.fake_llvm import register_fake_llvm
 
-app = FastAPI()
+def register_all_models():
+    logger.info("Registering all models")
+    register_fake_llvm(MODEL_REGISTRY)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    register_all_models()
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 logger = logging.getLogger("dify_llvm")
 
@@ -22,17 +34,23 @@ logger = logging.getLogger("dify_llvm")
 
 # 模型列表 / 注册支持的模型（你可以动态加载）
 
+@app.get("/v1/models/reload")
+async def reload_models():
+    logger.info("Reloading models")
+    register_all_models()
+    return JSONResponse(content={"message": "Models reloaded"})
+
 
 @app.get("/v1/models", response_model=ListModelsResponse)
 async def list_models():
     models = []
-    for model_id, info in MODEL_REGISTRY.items():
-        models.append(info)
+    for model in MODEL_REGISTRY.list_models():
+        models.append(model.info)
     return ListModelsResponse(data=models)
 
 @app.get("/v1/models/{model_id}", response_model=GetModelResponse)
 async def get_model(model_id: str):
-    info = MODEL_REGISTRY.get(model_id)
+    info = MODEL_REGISTRY.get_model_info(model_id)
     if not info:
         raise HTTPException(status_code=404, detail="Model not found")
     return GetModelResponse(**info.model_dump())
@@ -41,7 +59,7 @@ async def get_model(model_id: str):
 async def chat_completions(req: ChatCompletionRequest):
     logger.debug(f"ChatCompletionRequest: {req}")
     # 校验 model 是否支持 chat
-    info = MODEL_REGISTRY.get(req.model)
+    info = MODEL_REGISTRY.get_model_info(req.model)
     if not info or not info.capabilities.chat:
         raise HTTPException(status_code=400, detail="Model not supported for chat")
 
@@ -102,7 +120,7 @@ async def chat_completions(req: ChatCompletionRequest):
 async def completions(req: CompletionRequest):
     logger.debug(f"CompletionRequest: {req}")
     # 校验模型是否支持补全
-    info = MODEL_REGISTRY.get(req.model)
+    info = MODEL_REGISTRY.get_model_info(req.model)
     if not info or not info.capabilities.completion:
         raise HTTPException(status_code=400, detail="Model not supported for completion")
 
