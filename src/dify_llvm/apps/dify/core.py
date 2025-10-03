@@ -34,25 +34,25 @@ def get_client():
     return client
 
 
+def parser_app_to_model_interface(app: dict) -> ModelInterface:
+    name = app['name']
+    model_info = ModelInfo(
+        id=name,
+        owned_by="dify",
+        capabilities=ModelCapabilities(chat=True, completion=True, stream=True),
+    )
+    model_interface = ModelInterface(
+        info=model_info,
+        invoke_chat=invoke_chat,
+        invoke_completion=invoke_completion,
+    )
+    return model_interface
+
 def list_all_models():
     site = get_site()
     all_apps = site.fetch_all_apps()
     for app in all_apps:
-        name = app['name']
-        model_info = ModelInfo(
-            id=name,
-            owned_by="dify",
-            capabilities=ModelCapabilities(
-                chat=True,
-                completion=True,
-                stream=True,
-            ),
-        )
-        model_interface = ModelInterface(
-            info=model_info,
-            invoke_chat=invoke_chat,
-            invoke_completion=invoke_completion,
-        )
+        model_interface = parser_app_to_model_interface(app)
         yield model_interface
 
 
