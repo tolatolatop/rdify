@@ -5,7 +5,7 @@ from dify_llvm.openai_schemas import *
 from dify_llvm.models import ModelInterface, ModelInfo, ModelCapabilities, ModelRegistry
 from pydify import ChatbotClient
 from pydify.site import DifySite, DifyAppMode
-
+from .schemas import DifySiteModel, DifyAppModel
 
 logger = logging.getLogger("dify_llvm.apps.dify")
 
@@ -17,6 +17,9 @@ def get_config():
         "DIFY_EMAIL": os.getenv("DIFY_EMAIL"),
         "DIFY_PASSWORD": os.getenv("DIFY_PASSWORD"),
     }
+
+
+DIFY_SITE_MODEL = DifySiteModel()
 
 def get_site():
     config = get_config()
@@ -34,8 +37,8 @@ def get_client():
     return client
 
 
-def parser_app_to_model_interface(app: dict) -> ModelInterface:
-    name = app['name']
+def parser_app_to_model_interface(app: DifyAppModel) -> ModelInterface:
+    name = app.name
     model_info = ModelInfo(
         id=name,
         owned_by="dify",
@@ -48,20 +51,23 @@ def parser_app_to_model_interface(app: dict) -> ModelInterface:
     )
     return model_interface
 
-def list_all_models():
-    site = get_site()
-    all_apps = site.fetch_all_apps()
-    for app in all_apps:
-        model_interface = parser_app_to_model_interface(app)
-        yield model_interface
-
 
 def register_all_models(model_registry: ModelRegistry):
     logger.info("Registering all models")
+    site = get_site()
     try:
-        for model_interface in list_all_models():
-            logger.info(f"Registering model: {model_interface.info.id}")
-            model_registry.register_model(model_interface.info.id, model_interface)
+        all_apps = site.fetch_all_apps()
+        for app in all_apps:
+            app_model = DifyAppModel(
+                id=app['id'],
+                name=app['name'],
+                api_keys=[],
+            )
+            DIFY_SITE_MODEL.apps.append(app_model)
+
+            logger.info(f"Registering model: {app_model.name}")
+            model_interface = parser_app_to_model_interface(app_model)
+            model_registry.register_model(app_model.name, model_interface)
     except Exception as e:
         logger.error(f"Error registering all models: {e}")
 
