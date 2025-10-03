@@ -15,6 +15,7 @@ from .llm_models import invoke_chat, invoke_completion
 from .config import config
 from .apps.fake_llvm import register_fake_llvm
 from .apps import dify
+from .llm_models import chat_event, completion_event
 
 def register_all_models():
     logger.info("Registering all models")
@@ -100,28 +101,7 @@ async def chat_completions(req: ChatCompletionRequest, request: Request):
     else:
         # stream=True 模式 — 返回 StreamingResponse，逐 chunk 推送
         logger.debug(f"StreamingResponse: {req.model}")
-        async def event_generator():
-            # 你可以考虑先 yield 一个 “开头” 的 JSON（比如 id/model 信息），再逐 chunk 内容
-            # 为简单起见，这里每个 chunk 直接 yield 一个 JSON 行
-            chunk_gen = await invoke_chat(req, context=context)
-            async for chunk in chunk_gen:
-                # chunk 是 ChatCompletionChoice 类型，其中 delta 不为 None
-                resp.choices = [chunk]
-                content = resp.model_dump_json()
-                yield "data: " + content + "\n\n"
-                logger.debug(f"Chunk: {content}")
-            # 最后一个终止 chunk 可以带 finish_reason
-            msg = ChatCompletionChoice(
-                index=0,
-                message=ChatMessage(role="assistant", content=""),
-                finish_reason="stop",
-                delta=ChoiceDeltaContent(content="", role="assistant")
-            )
-            resp.choices = [msg]
-            content = resp.model_dump_json()
-            yield "data: " + content + "\n\n"
-            logger.debug(f"Finish chunk: {content}")
-            yield "data: [DONE]\n\n"
+        event_generator = chat_event(req, resp, context=context)
         return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 @app.post("/v1/completions")
@@ -150,21 +130,5 @@ async def completions(req: CompletionRequest, request: Request):
         resp.usage = Usage()
         return resp
     else:
-        async def event_generator():
-            completion_gen = await invoke_completion(req, context=context)
-            async for chunk in completion_gen:
-                resp.choices = [chunk]
-                content = resp.model_dump_json()
-                yield "data: " + content + "\n\n"
-                logger.debug(f"Chunk: {content}")
-            msg = CompletionChoice(
-                index=0,
-                text="",
-                finish_reason="stop"
-            )
-            resp.choices = [msg]
-            content = resp.model_dump_json()
-            yield "data: " + content + "\n\n"
-            logger.debug(f"Finish chunk: {content}")
-            yield "data: [DONE]\n\n"
+        event_generator = completion_event(req, resp, context=context)
         return StreamingResponse(event_generator(), media_type="text/event-stream")

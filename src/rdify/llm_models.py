@@ -1,7 +1,10 @@
-from .openai_schemas import *
 from typing import AsyncIterator
+import logging
+
+from .openai_schemas import *
 from .models import ModelRegistry, ModelInterface
 
+logger = logging.getLogger("rdify.llm_models")
 
 MODEL_REGISTRY = ModelRegistry()
 
@@ -31,3 +34,51 @@ async def invoke_chat(req: ChatCompletionRequest, **kwargs) -> AsyncIterator[Cha
 
 async def invoke_completion(req: CompletionRequest, **kwargs) -> AsyncIterator[CompletionChoice]:
     return MODEL_REGISTRY.get_model_invoke_completion(req.model)(req, **kwargs)
+
+
+def chat_event(req: ChatCompletionRequest, resp: ChatCompletionResponse, **kwargs):
+    async def event_generator():
+            # 你可以考虑先 yield 一个 “开头” 的 JSON（比如 id/model 信息），再逐 chunk 内容
+            # 为简单起见，这里每个 chunk 直接 yield 一个 JSON 行
+            chunk_gen = await invoke_chat(req, **kwargs)
+            async for chunk in chunk_gen:
+                # chunk 是 ChatCompletionChoice 类型，其中 delta 不为 None
+                resp.choices = [chunk]
+                content = resp.model_dump_json()
+                yield "data: " + content + "\n\n"
+                logger.debug(f"Chunk: {content}")
+            # 最后一个终止 chunk 可以带 finish_reason
+            msg = ChatCompletionChoice(
+                index=0,
+                message=ChatMessage(role="assistant", content=""),
+                finish_reason="stop",
+                delta=ChoiceDeltaContent(content="", role="assistant")
+            )
+            resp.choices = [msg]
+            content = resp.model_dump_json()
+            yield "data: " + content + "\n\n"
+            logger.debug(f"Finish chunk: {content}")
+            yield "data: [DONE]\n\n"
+    return event_generator
+
+
+def completion_event(req: CompletionRequest, resp: CompletionResponse, **kwargs):
+    async def event_generator():
+        completion_gen = await invoke_completion(req, **kwargs)
+        async for chunk in completion_gen:
+            resp.choices = [chunk]
+            content = resp.model_dump_json()
+            yield "data: " + content + "\n\n"
+            logger.debug(f"Chunk: {content}")
+        msg = CompletionChoice(
+            index=0,
+            text="",
+            finish_reason="stop"
+        )
+        resp.choices = [msg]
+        content = resp.model_dump_json()
+        yield "data: " + content + "\n\n"
+        logger.debug(f"Finish chunk: {content}")
+        yield "data: [DONE]\n\n"
+    return event_generator
+
