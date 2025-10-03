@@ -16,6 +16,11 @@ handlers:
     filename: logs/debug.log
     formatter: standard
 
+  anyio_handler:
+    class: logging.FileHandler
+    filename: logs/debug_anyio.log
+    formatter: standard
+
   test_handler:
     class: logging.FileHandler
     filename: logs/tests.log
@@ -30,4 +35,9 @@ loggers:
   tests:
     level: DEBUG  
     handlers: [console, test_handler]
+    propagate: false
+
+  rdify.cancel_scope:
+    level: DEBUG
+    handlers: [anyio_handler]
     propagate: false
