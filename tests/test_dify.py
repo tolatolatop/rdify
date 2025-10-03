@@ -1,4 +1,4 @@
-from dify_llvm.apps.dify.core import get_or_create_new_api_key, fetch_all_apps
+from rdify.apps.dify.core import get_or_create_new_api_key, fetch_all_apps
 
 
 def test_get_or_create_new_api_key():

@@ -22,7 +22,7 @@ handlers:
     formatter: standard
 
 loggers:
-  dify_llvm:
+  rdify:
     level: DEBUG
     handlers: [console, debug_handler]
     propagate: false

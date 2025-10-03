@@ -18,7 +18,7 @@ dependencies = [
 ]
 
 [tool.poetry]
-packages = [{include = "dify_llvm", from = "src"}]
+packages = [{include = "rdify", from = "src"}]
 
 
 [tool.poetry.group.dev.dependencies]

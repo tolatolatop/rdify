@@ -28,7 +28,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-logger = logging.getLogger("dify_llvm")
+logger = logging.getLogger("rdify")
 
 # 假设你有一个内部适配器 / 接口，比如：
 # async def invoke_chat(model: str, messages: List[ChatMessage], stream: bool, **kwargs) -> AsyncIterator[ChatCompletionChoice]

@@ -2,15 +2,15 @@ import os
 import asyncio
 import logging
 
-from dify_llvm.openai_schemas import *
-from dify_llvm.models import ModelInterface, ModelInfo, ModelCapabilities, ModelRegistry
+from rdify.openai_schemas import *
+from rdify.models import ModelInterface, ModelInfo, ModelCapabilities, ModelRegistry
 from pydify import ChatbotClient
 from pydify.site import DifySite, DifyAppMode
 from .schemas import DifySiteModel, DifyAppModel
 from .schemas import DifyEvent
-from dify_llvm.utils.thread_bridge import run_blocking_iter_in_thread
+from rdify.utils.thread_bridge import run_blocking_iter_in_thread
 
-logger = logging.getLogger("dify_llvm.apps.dify")
+logger = logging.getLogger("rdify.apps.dify")
 
 def get_config():
     return {

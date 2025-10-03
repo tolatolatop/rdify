@@ -6,7 +6,7 @@ from ..openai_schemas import ChatMessage
 from ..models import ModelInterface, ModelInfo, ModelCapabilities, ModelRegistry
 
 
-logger = logging.getLogger("dify_llvm.apps.fake_llvm")
+logger = logging.getLogger("rdify.apps.fake_llvm")
 
 async def fake_llm_stream(prompt: str):
     """
