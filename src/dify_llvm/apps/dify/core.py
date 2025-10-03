@@ -1,4 +1,5 @@
 import os
+import asyncio
 import logging
 
 from dify_llvm.openai_schemas import *
@@ -6,6 +7,8 @@ from dify_llvm.models import ModelInterface, ModelInfo, ModelCapabilities, Model
 from pydify import ChatbotClient
 from pydify.site import DifySite, DifyAppMode
 from .schemas import DifySiteModel, DifyAppModel
+from .schemas import DifyEvent
+from dify_llvm.utils.thread_bridge import run_blocking_iter_in_thread
 
 logger = logging.getLogger("dify_llvm.apps.dify")
 
@@ -97,13 +100,29 @@ def register_all_models(model_registry: ModelRegistry):
 
 
 async def invoke_chat(req: ChatCompletionRequest):
-    site = get_client()
-    chatbot = site.get_chatbot(req.model)
-    response = await chatbot.chat(req.messages, stream=req.stream, **req.model_dump())
-    return response
+    client = get_client(req.model)
+    last_message = req.messages[-1]
+    content = last_message.content
+
+    def _blocking_iter():
+        # 这个生成器可能是阻塞的、同步的
+        for chunk in client.send_message(
+            query=content,
+            user=req.user or "unknown",
+            response_mode="streaming"
+        ):
+            yield DifyEvent.from_api_data(chunk)
+
+    async for chunk in run_blocking_iter_in_thread(_blocking_iter):
+        yield ChatCompletionChoice(
+            index=0,
+            message=ChatMessage(role="assistant", content=chunk.answer),
+            finish_reason=None,
+            delta=ChoiceDeltaContent(content=chunk.answer, role="assistant")
+        )
 
 async def invoke_completion(req: CompletionRequest):
-    site = get_client()
+    site = get_client(req.model)
     chatbot = site.get_chatbot(req.model)
     response = await chatbot.complete(req.prompt, stream=req.stream, **req.model_dump())
     return response
