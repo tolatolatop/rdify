@@ -9,7 +9,9 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "pydify @ git+https://github.com/jayscoder/pydify.git",
-    "fastapi (>=0.118.0,<0.119.0)"
+    "fastapi[standard] (>=0.118.0,<0.119.0)",
+    "pydantic (>=2.11.9,<3.0.0)",
+    "uvicorn (>=0.37.0,<0.38.0)"
 ]
 
 [tool.poetry]
