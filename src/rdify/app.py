@@ -23,6 +23,7 @@ def register_all_models():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     register_all_models()
+    app.include_router(dify.router)
     yield
 
 
