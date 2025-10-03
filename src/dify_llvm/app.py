@@ -3,14 +3,18 @@ from typing import AsyncIterator, List, Union
 import time
 import uuid
 import json
+import logging
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse, JSONResponse
 from .openai_schemas import *
 from .llm_models import MODEL_REGISTRY
 from .llm_models import invoke_chat, invoke_completion
+from .config import config
 
 app = FastAPI()
+
+logger = logging.getLogger("dify_llvm")
 
 # 假设你有一个内部适配器 / 接口，比如：
 # async def invoke_chat(model: str, messages: List[ChatMessage], stream: bool, **kwargs) -> AsyncIterator[ChatCompletionChoice]
@@ -52,14 +56,8 @@ async def chat_completions(req: ChatCompletionRequest):
     if not req.stream:
         # 收集所有 chunk
         chunks = []
-        async for chunk in invoke_chat(
-            req.model, req.messages, stream=False,
-            temperature=req.temperature,
-            top_p=req.top_p,
-            max_tokens=req.max_tokens,
-            stop=req.stop,
-            **{}
-        ):
+        chunk_gen = await invoke_chat(req)
+        async for chunk in chunk_gen:
             chunks.append(chunk)
         # 假设 chunks 最终只有一个完整 choice（你内部适配器可以决定如何组织）
         choices = []
@@ -82,25 +80,12 @@ async def chat_completions(req: ChatCompletionRequest):
 
     else:
         # stream=True 模式 — 返回 StreamingResponse，逐 chunk 推送
+        logger.debug(f"StreamingResponse: {req.model}")
         async def event_generator():
             # 你可以考虑先 yield 一个 “开头” 的 JSON（比如 id/model 信息），再逐 chunk 内容
             # 为简单起见，这里每个 chunk 直接 yield 一个 JSON 行
-            first = {
-                "id": resp_id,
-                "object": "chat.completion",
-                "model": req.model,
-                "created": created,
-                # choices 会是一个数组，元素的 delta 部分逐步填充
-                "choices": []
-            }
-            yield (json.dumps(first) + "\n").encode("utf-8")
-
-            async for chunk in invoke_chat(req.model, req.messages, stream=True,
-                                           temperature=req.temperature,
-                                           top_p=req.top_p,
-                                           max_tokens=req.max_tokens,
-                                           stop=req.stop,
-                                           **{}):
+            chunk_gen = await invoke_chat(req)
+            async for chunk in chunk_gen:
                 # chunk 是 ChatCompletionChoice 类型，其中 delta 不为 None
                 msg = {
                     "id": resp_id,
@@ -118,10 +103,22 @@ async def chat_completions(req: ChatCompletionRequest):
                         }
                     ]
                 }
-                yield (json.dumps(msg) + "\n").encode("utf-8")
+                content = json.dumps(msg)
+                yield "data: " + content + "\n\n"
+                logger.debug(f"Chunk: {chunk}")
             # 最后一个终止 chunk 可以带 finish_reason
-            # 可以自定义发送一个标记结束
-        return StreamingResponse(event_generator(), media_type="application/json")
+            finish_msg = {
+                "id": resp_id,
+                "object": "chat.completion",
+                "model": req.model,
+                "created": created,
+                "choices": [{"index": 0, "finish_reason": "stop", "delta": {}}]
+            }
+            content = json.dumps(finish_msg)
+            yield "data: " + content + "\n\n"
+            yield "data: [DONE]\n\n"
+            logger.debug(f"Finish chunk: {chunk}")
+        return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 @app.post("/v1/completions")
 async def completions(req: CompletionRequest):
@@ -135,13 +132,7 @@ async def completions(req: CompletionRequest):
 
     if not req.stream:
         chunks = []
-        async for chunk in invoke_completion(req.model, req.prompt, stream=False,
-                                              suffix=req.suffix,
-                                              temperature=req.temperature,
-                                              top_p=req.top_p,
-                                              max_tokens=req.max_tokens,
-                                              stop=req.stop,
-                                              **{}):
+        async for chunk in invoke_completion(req):
             chunks.append(chunk)
         choices = chunks
         usage = Usage()
@@ -165,15 +156,7 @@ async def completions(req: CompletionRequest):
             }
             yield (json.dumps(first) + "\n").encode("utf-8")
 
-            async for chunk in invoke_completion(
-                req.model, req.prompt, stream=True,
-                suffix=req.suffix,
-                temperature=req.temperature,
-                top_p=req.top_p,
-                max_tokens=req.max_tokens,
-                stop=req.stop,
-                **{}
-            ):
+            async for chunk in invoke_completion(req):
                 msg = {
                     "id": resp_id,
                     "object": "text_completion",

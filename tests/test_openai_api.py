@@ -92,7 +92,7 @@ def test_chat_completion_streaming(client):
         c = chunk_dict["choices"][0]
         if "delta" in c:
             delta = c["delta"]
-            assert isinstance(delta, dict)
+            assert isinstance(delta, dict), f"Delta is not a dict: {delta}"
             if delta.get("content"):
                 saw_content += delta["content"]
         else:
