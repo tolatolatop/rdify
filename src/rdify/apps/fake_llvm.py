@@ -16,7 +16,7 @@ async def fake_llm_stream(prompt: str):
     text = f"<think> {prompt[::-1]} \n</think> {prompt[:]}"
     for i, ch in enumerate(text.split(" ")):
         yield ch
-        await asyncio.sleep(0.05)  # 模拟生成延迟
+        await asyncio.sleep(0.1)  # 模拟生成延迟
 
 
 async def fake_llm_stream_chat(req: ChatCompletionRequest):
@@ -40,6 +40,25 @@ async def fake_llm_stream_completion(req: CompletionRequest):
         )
 
 
+async def fake_llm_stream_chat_long_repeat(req: ChatCompletionRequest):
+    prompt = "".join([f"{message.role}: {message.content}\n" for message in req.messages])
+    async for chunk in fake_llm_stream(prompt * 100):
+        yield ChatCompletionChoice(
+            index=0,
+            message=ChatMessage(role="assistant", content=chunk),
+            finish_reason=None,
+            delta=ChoiceDeltaContent(content=chunk, role="assistant")
+        )
+
+async def fake_llm_stream_chat_long_repeat_completion(req: CompletionRequest):
+    prompt = req.prompt if isinstance(req.prompt, str) else "\n".join(req.prompt)
+    async for chunk in fake_llm_stream(prompt * 100):
+        yield CompletionChoice(
+            index=0,
+            text=chunk,
+            finish_reason=None
+        )
+
 def register_fake_llvm(model_registry: ModelRegistry):
     logger.info("Registering test-model")
     model_registry.register_model("test-model", ModelInterface(
@@ -50,4 +69,14 @@ def register_fake_llvm(model_registry: ModelRegistry):
         ),
         invoke_chat=fake_llm_stream_chat,
         invoke_completion=fake_llm_stream_completion,
+    ))
+
+    model_registry.register_model("test-model-long-repeat", ModelInterface(
+        info=ModelInfo(
+            id="test-model-long-repeat",
+            owned_by="self",
+            capabilities=ModelCapabilities(chat=True, completion=True, stream=True),
+        ),
+        invoke_chat=fake_llm_stream_chat_long_repeat,
+        invoke_completion=fake_llm_stream_chat_long_repeat_completion,
     ))
