@@ -1,4 +1,5 @@
 import os
+import re
 import asyncio
 import logging
 
@@ -88,6 +89,12 @@ def parser_app_to_model_interface(app: DifyAppModel) -> ModelInterface:
     return model_interface
 
 
+def validate_app(app: DifyAppModel):
+    name = app.name
+    if not re.match(r'^[a-zA-Z0-9_-]+$', name):
+        return False
+    return True
+
 def fetch_all_apps():
     site = get_site()
     for app in site.fetch_all_apps():
@@ -96,6 +103,9 @@ def fetch_all_apps():
             name=app['name'],
             api_keys=[],
         )
+        if not validate_app(app_model):
+            logger.info(f"Filtered app: {app_model.name}")
+            continue
         DIFY_SITE_MODEL.apps.append(app_model)
         logger.debug(f"Fetched app: {app_model.name}")
         yield app_model
