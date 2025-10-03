@@ -132,7 +132,8 @@ async def completions(req: CompletionRequest):
 
     if not req.stream:
         chunks = []
-        async for chunk in invoke_completion(req):
+        completion_gen = await invoke_completion(req)
+        async for chunk in completion_gen:
             chunks.append(chunk)
         choices = chunks
         usage = Usage()
@@ -146,17 +147,8 @@ async def completions(req: CompletionRequest):
         return resp
     else:
         async def event_generator():
-            # 同样，先可以发送初始 header
-            first = {
-                "id": resp_id,
-                "object": "text_completion",
-                "model": req.model,
-                "created": created,
-                "choices": []
-            }
-            yield (json.dumps(first) + "\n").encode("utf-8")
-
-            async for chunk in invoke_completion(req):
+            completion_gen = await invoke_completion(req)
+            async for chunk in completion_gen:
                 msg = {
                     "id": resp_id,
                     "object": "text_completion",
@@ -170,5 +162,16 @@ async def completions(req: CompletionRequest):
                         }
                     ]
                 }
-                yield (json.dumps(msg) + "\n").encode("utf-8")
-        return StreamingResponse(event_generator(), media_type="application/json")
+                content = json.dumps(msg)
+                yield "data: " + content + "\n\n"
+            finish_msg = {
+                "id": resp_id,
+                "object": "text_completion",
+                "model": req.model,
+                "created": created,
+                "choices": [{"index": 0, "finish_reason": "stop", "text": ""}]
+            }
+            content = json.dumps(finish_msg)
+            yield "data: " + content + "\n\n"
+            yield "data: [DONE]\n\n"
+        return StreamingResponse(event_generator(), media_type="text/event-stream")
