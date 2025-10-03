@@ -18,6 +18,20 @@ def post_openai_compatible_models(site: DifySite, model_config: dict):
     return response.json()
 
 
+def delete_openai_compatible_models(site: DifySite, model_config: dict):
+    base_url = site.base_url
+    access_token = site.access_token
+    api_path = "console/api/workspaces/current/model-providers/langgenius/openai_api_compatible/openai_api_compatible/models"
+    url = f"{base_url}/{api_path}"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+    }
+    response = requests.delete(url, headers=headers, json=model_config)
+    if response.status_code != 204:
+        response.raise_for_status()
+    return True
+
 def fetch_llm_models(site: DifySite):
     base_url = site.base_url
     access_token = site.access_token

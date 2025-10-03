@@ -1,5 +1,7 @@
+import os
+
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Literal
 
 class DifyAppModel(BaseModel):
     id: str = Field(..., description="The ID of the app")
@@ -43,3 +45,38 @@ class DifyResponse(ApiBaseModel):
 class DifyLLMModel(ApiBaseModel):
     model: str = Field(description="模型名称")
     model_type: str = Field(description="模型类型")
+
+
+def default_endpoint_url():
+    return os.getenv("RDIFY_BASE_URL", "")
+
+class DifyOpenAICompatibleModelCredentials(ApiBaseModel):
+    mode: Literal["chat"] = Field(description="模式", default="chat")
+    context_size: str = Field(description="上下文大小", default="40960")
+    max_tokens_to_sample: str = Field(description="最大令牌数", default="40960")
+    agent_though_support: str = Field(description="代理思考支持", default="supported")
+    function_calling_type: str = Field(description="函数调用类型", default="function_call")
+    stream_function_calling: str = Field(description="流函数调用", default="supported")
+    vision_support: str = Field(description="视觉支持", default="no_support")
+    structured_output_support: str = Field(description="结构化输出支持", default="not_supported")
+    stream_mode_auth: str = Field(description="流模式认证", default="not_use")
+    stream_mode_delimiter: str = Field(description="流模式分隔符", default="\n\n")
+    voices: str = Field(description="声音", default="alloy")
+    api_key: str = Field(description="API密钥", default="")
+    endpoint_url: str = Field(description="端点URL", default=default_endpoint_url())
+
+
+def default_load_balancing():
+    return {
+        "enabled": False,
+        "configs": []
+    }
+
+class DifyOpenAICompatibleModel(ApiBaseModel):
+    model: str = Field(description="模型名称")
+    model_type: Literal["llm"] = Field(description="模型类型", default="llm")
+    credentials: DifyOpenAICompatibleModelCredentials = Field(
+        description="凭证",
+        default_factory=DifyOpenAICompatibleModelCredentials
+    )
+    load_balancing: dict = Field(description="负载均衡", default_factory=default_load_balancing)

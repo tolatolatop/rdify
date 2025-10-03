@@ -1,0 +1,23 @@
+{
+    "model": "test-model",
+    "model_type": "llm",
+    "credentials": {
+        "mode": "chat",
+        "context_size": "4096",
+        "max_tokens_to_sample": "4096",
+        "agent_though_support": "supported",
+        "function_calling_type": "function_call",
+        "stream_function_calling": "supported",
+        "vision_support": "no_support",
+        "structured_output_support": "not_supported",
+        "stream_mode_auth": "not_use",
+        "stream_mode_delimiter": "\\n\\n",
+        "voices": "alloy",
+        "api_key": "12341",
+        "endpoint_url": "http://dev.lan:8021/v1"
+    },
+    "load_balancing": {
+        "enabled": false,
+        "configs": []
+    }
+}
