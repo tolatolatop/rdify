@@ -38,3 +38,8 @@ class DifyResponse(ApiBaseModel):
     def from_api_data(cls, data: list):
         events = [DifyEvent.from_api_data(item) for item in data]
         return cls(events=events,  api_data={"events": data})
+
+
+class DifyLLMModel(ApiBaseModel):
+    model: str = Field(description="模型名称")
+    model_type: str = Field(description="模型类型")
