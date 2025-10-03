@@ -8,7 +8,7 @@ async def fake_llm_stream(prompt: str):
     模拟 LLM 的逐步输出。
     实际情况你可以接本地模型、或者自己切片大文本。
     """
-    text = f"<think> {prompt[::-1]}</think> {prompt[:-1]}"
+    text = f"<think> {prompt[::-1]} \n</think> {prompt[:]}"
     for i, ch in enumerate(text.split(" ")):
         yield ch
         await asyncio.sleep(0.05)  # 模拟生成延迟
