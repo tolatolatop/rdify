@@ -31,9 +31,29 @@ def get_site():
     return site
 
 
-def get_client():
+def get_or_create_new_api_key(model_name: str):
+    logger.debug(f"Getting or creating new API key for model: {model_name}")
+    app_model = DIFY_SITE_MODEL.get_app(model_name)
+    if len(app_model.api_keys) > 0:
+        return app_model.api_keys[0]
     site = get_site()
-    client = ChatbotClient(site)
+    app_api_keys = site.fetch_app_api_keys(app_model.id)
+    if len(app_api_keys) == 0:
+        logger.debug(f"Creating new API key for model: {model_name}")
+        new_api_key = site.create_app_api_key(app_model.id)
+        api_key = new_api_key['token']
+    else:
+        api_key = app_api_keys[0]['token']
+    app_model.api_keys.append(api_key)
+    return api_key
+
+def get_client(model_name: str):
+    config = get_config()
+    api_key = get_or_create_new_api_key(model_name)
+    client = ChatbotClient(
+        api_key=api_key,
+        base_url=config["DIFY_BASE_URL"],
+    )
     return client
 
 
@@ -52,19 +72,23 @@ def parser_app_to_model_interface(app: DifyAppModel) -> ModelInterface:
     return model_interface
 
 
+def fetch_all_apps():
+    site = get_site()
+    for app in site.fetch_all_apps():
+        app_model = DifyAppModel(
+            id=app['id'],
+            name=app['name'],
+            api_keys=[],
+        )
+        DIFY_SITE_MODEL.apps.append(app_model)
+        logger.debug(f"Fetched app: {app_model.name}")
+        yield app_model
+
 def register_all_models(model_registry: ModelRegistry):
     logger.info("Registering all models")
     site = get_site()
     try:
-        all_apps = site.fetch_all_apps()
-        for app in all_apps:
-            app_model = DifyAppModel(
-                id=app['id'],
-                name=app['name'],
-                api_keys=[],
-            )
-            DIFY_SITE_MODEL.apps.append(app_model)
-
+        for app_model in fetch_all_apps():
             logger.info(f"Registering model: {app_model.name}")
             model_interface = parser_app_to_model_interface(app_model)
             model_registry.register_model(app_model.name, model_interface)
