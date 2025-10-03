@@ -48,9 +48,10 @@ async def chat_completions(req: ChatCompletionRequest):
     if not info or not info.get("capabilities", {}).get("chat", False):
         raise HTTPException(status_code=400, detail="Model not supported for chat")
 
-    # 生成一个响应 id
-    resp_id = str(uuid.uuid4())
-    created = int(time.time())
+    resp = ChatCompletionResponse(
+        model=req.model,
+        choices=[]
+    )
 
     # 如果不是 stream 模式：一次性返回最终响应
     if not req.stream:
@@ -69,13 +70,8 @@ async def chat_completions(req: ChatCompletionRequest):
             completion_tokens=None,
             total_tokens=None
         )
-        resp = ChatCompletionResponse(
-            id=resp_id,
-            created=created,
-            model=req.model,
-            choices=choices,
-            usage=usage
-        )
+        resp.choices = choices
+        resp.usage = usage
         return resp
 
     else:
@@ -87,37 +83,22 @@ async def chat_completions(req: ChatCompletionRequest):
             chunk_gen = await invoke_chat(req)
             async for chunk in chunk_gen:
                 # chunk 是 ChatCompletionChoice 类型，其中 delta 不为 None
-                msg = {
-                    "id": resp_id,
-                    "object": "chat.completion",
-                    "model": req.model,
-                    "created": created,
-                    "choices": [
-                        {
-                            "index": chunk.index,
-                            "delta": {
-                                "content": chunk.delta.content,
-                                "role": chunk.delta.role,
-                            },
-                            "finish_reason": None
-                        }
-                    ]
-                }
-                content = json.dumps(msg)
+                resp.choices = [chunk]
+                content = resp.model_dump_json()
                 yield "data: " + content + "\n\n"
-                logger.debug(f"Chunk: {chunk}")
+                logger.debug(f"Chunk: {content}")
             # 最后一个终止 chunk 可以带 finish_reason
-            finish_msg = {
-                "id": resp_id,
-                "object": "chat.completion",
-                "model": req.model,
-                "created": created,
-                "choices": [{"index": 0, "finish_reason": "stop", "delta": {}}]
-            }
-            content = json.dumps(finish_msg)
+            msg = ChatCompletionChoice(
+                index=0,
+                message=ChatMessage(role="assistant", content=""),
+                finish_reason="stop",
+                delta=ChoiceDeltaContent(content="", role="assistant")
+            )
+            resp.choices = [msg]
+            content = resp.model_dump_json()
             yield "data: " + content + "\n\n"
+            logger.debug(f"Finish chunk: {content}")
             yield "data: [DONE]\n\n"
-            logger.debug(f"Finish chunk: {chunk}")
         return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 @app.post("/v1/completions")

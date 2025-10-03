@@ -1,8 +1,17 @@
+import time
+from uuid import uuid4
 from typing import List, Optional, Literal, Union, Dict, Any
 from pydantic import BaseModel, Field
 
+def generate_id():
+    return str(uuid4())
+
+def create_time():
+    return int(time.time())
+
+
 class ModelInfo(BaseModel):
-    id: str = Field(..., title="模型 ID", description="模型的唯一标识符")
+    id: str = Field(..., title="模型 ID", description="模型的唯一标识符", default_factory=generate_id)
     object: Literal["model"] = Field("model", description="对象类型，总为 \"model\"")
     owned_by: Optional[str] = Field(None, title="拥有者", description="该模型所属的账户或组织")
     capabilities: Dict[str, Any] = Field(
@@ -47,22 +56,22 @@ class ChatCompletionChoice(BaseModel):
         None, title="结束原因", description="为何结束生成（如 'stop'、'length'、'function_call' 等）"
     )
     delta: Optional[ChoiceDeltaContent] = Field(
-        None, title="增量内容", description="流式模式下的本次 chunk 内容差异 (delta)"
+        title="增量内容", description="流式模式下的本次 chunk 内容差异 (delta)", default_factory=lambda: ChoiceDeltaContent(content="", role="")
     )
 
 
 class ChatCompletionResponse(BaseModel):
-    id: str = Field(..., title="响应 ID", description="本次 API 调用的唯一标识符")
+    id: str = Field(..., title="响应 ID", description="本次 API 调用的唯一标识符", default_factory=generate_id)
     object: Literal["chat.completion"] = Field(
         "chat.completion",
         title="对象类型",
         description="固定为 \"chat.completion\""
     )
-    created: int = Field(..., title="创建时间 (Unix)", description="响应生成时间戳（Unix 秒级）")
+    created: int = Field(..., title="创建时间 (Unix)", description="响应生成时间戳（Unix 秒级）", default_factory=create_time)
     model: str = Field(..., title="模型 ID", description="用于推理的模型标识符")
     usage: Optional[Usage] = Field(None, title="使用情况统计", description="prompt / completion / total token 用量")
     choices: List[ChatCompletionChoice] = Field(
-        ..., title="候选项列表", description="生成的多个候选消息选项"
+        ..., title="候选项列表", description="生成的多个候选消息选项", default_factory=list
     )
 
 
@@ -78,13 +87,13 @@ class CompletionChoice(BaseModel):
 
 
 class CompletionResponse(BaseModel):
-    id: str = Field(..., title="响应 ID", description="本次 API 调用的唯一标识符")
+    id: str = Field(..., title="响应 ID", description="本次 API 调用的唯一标识符", default_factory=generate_id)
     object: Literal["text_completion"] = Field(
         "text_completion",
         title="对象类型",
         description="固定为 \"text_completion\""
     )
-    created: int = Field(..., title="创建时间 (Unix)", description="响应生成时间戳（Unix 秒级）")
+    created: int = Field(..., title="创建时间 (Unix)", description="响应生成时间戳（Unix 秒级）", default_factory=create_time)
     model: str = Field(..., title="模型 ID", description="用于推理的模型标识符")
     usage: Optional[Usage] = Field(None, title="使用情况统计", description="prompt / completion / total token 用量")
     choices: List[CompletionChoice] = Field(
