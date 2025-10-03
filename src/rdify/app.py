@@ -7,6 +7,7 @@ import json
 import logging
 
 from fastapi import FastAPI, HTTPException
+from fastapi import Request
 from fastapi.responses import StreamingResponse, JSONResponse
 from .openai_schemas import *
 from .llm_models import MODEL_REGISTRY
@@ -59,7 +60,7 @@ async def get_model(model_id: str):
     return GetModelResponse(**info.model_dump())
 
 @app.post("/v1/chat/completions")
-async def chat_completions(req: ChatCompletionRequest):
+async def chat_completions(req: ChatCompletionRequest, request: Request):
     logger.debug(f"ChatCompletionRequest: {req}")
     # 校验 model 是否支持 chat
     info = MODEL_REGISTRY.get_model_info(req.model)
@@ -71,11 +72,15 @@ async def chat_completions(req: ChatCompletionRequest):
         choices=[]
     )
 
+    context = {
+        "request": request,
+    }
+
     # 如果不是 stream 模式：一次性返回最终响应
     if not req.stream:
         # 收集所有 chunk
         chunks = []
-        chunk_gen = await invoke_chat(req)
+        chunk_gen = await invoke_chat(req, context=context)
         async for chunk in chunk_gen:
             chunks.append(chunk)
         # 假设 chunks 最终只有一个完整 choice（你内部适配器可以决定如何组织）
@@ -98,7 +103,7 @@ async def chat_completions(req: ChatCompletionRequest):
         async def event_generator():
             # 你可以考虑先 yield 一个 “开头” 的 JSON（比如 id/model 信息），再逐 chunk 内容
             # 为简单起见，这里每个 chunk 直接 yield 一个 JSON 行
-            chunk_gen = await invoke_chat(req)
+            chunk_gen = await invoke_chat(req, context=context)
             async for chunk in chunk_gen:
                 # chunk 是 ChatCompletionChoice 类型，其中 delta 不为 None
                 resp.choices = [chunk]
@@ -120,7 +125,7 @@ async def chat_completions(req: ChatCompletionRequest):
         return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 @app.post("/v1/completions")
-async def completions(req: CompletionRequest):
+async def completions(req: CompletionRequest, request: Request):
     logger.debug(f"CompletionRequest: {req}")
     # 校验模型是否支持补全
     info = MODEL_REGISTRY.get_model_info(req.model)
@@ -132,9 +137,13 @@ async def completions(req: CompletionRequest):
         choices=[]
     )
 
+    context = {
+        "request": request,
+    }
+
     if not req.stream:
         chunks = []
-        completion_gen = await invoke_completion(req)
+        completion_gen = await invoke_completion(req, context=context)
         async for chunk in completion_gen:
             chunks.append(chunk)
         resp.choices = chunks
@@ -142,7 +151,7 @@ async def completions(req: CompletionRequest):
         return resp
     else:
         async def event_generator():
-            completion_gen = await invoke_completion(req)
+            completion_gen = await invoke_completion(req, context=context)
             async for chunk in completion_gen:
                 resp.choices = [chunk]
                 content = resp.model_dump_json()
