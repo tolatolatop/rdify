@@ -27,9 +27,7 @@ logger = logging.getLogger("dify_llvm")
 async def list_models():
     models = []
     for model_id, info in MODEL_REGISTRY.items():
-        models.append(ModelInfo(id=model_id,
-                                owned_by="self",
-                                capabilities=info.get("capabilities", {})))
+        models.append(info)
     return ListModelsResponse(data=models)
 
 @app.get("/v1/models/{model_id}", response_model=GetModelResponse)
@@ -37,16 +35,14 @@ async def get_model(model_id: str):
     info = MODEL_REGISTRY.get(model_id)
     if not info:
         raise HTTPException(status_code=404, detail="Model not found")
-    return GetModelResponse(id=model_id,
-                            owned_by="self",
-                            capabilities=info.get("capabilities", {}))
+    return GetModelResponse(**info.model_dump())
 
 @app.post("/v1/chat/completions")
 async def chat_completions(req: ChatCompletionRequest):
     logger.debug(f"ChatCompletionRequest: {req}")
     # 校验 model 是否支持 chat
     info = MODEL_REGISTRY.get(req.model)
-    if not info or not info.get("capabilities", {}).get("chat", False):
+    if not info or not info.capabilities.chat:
         raise HTTPException(status_code=400, detail="Model not supported for chat")
 
     resp = ChatCompletionResponse(
@@ -107,7 +103,7 @@ async def completions(req: CompletionRequest):
     logger.debug(f"CompletionRequest: {req}")
     # 校验模型是否支持补全
     info = MODEL_REGISTRY.get(req.model)
-    if not info or not info.get("capabilities", {}).get("completion", False):
+    if not info or not info.capabilities.completion:
         raise HTTPException(status_code=400, detail="Model not supported for completion")
 
     resp = CompletionResponse(

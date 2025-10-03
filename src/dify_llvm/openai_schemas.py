@@ -10,12 +10,17 @@ def create_time():
     return int(time.time())
 
 
+class ModelCapabilities(BaseModel):
+    chat: bool = Field(..., title="是否支持 chat", description="是否支持 chat", default_factory=lambda: False)
+    completion: bool = Field(..., title="是否支持 completion", description="是否支持 completion", default_factory=lambda: False)
+    stream: bool = Field(..., title="是否支持 stream", description="是否支持 stream", default_factory=lambda: False)
+
 class ModelInfo(BaseModel):
     id: str = Field(..., title="模型 ID", description="模型的唯一标识符", default_factory=generate_id)
     object: Literal["model"] = Field("model", description="对象类型，总为 \"model\"")
     owned_by: Optional[str] = Field(None, title="拥有者", description="该模型所属的账户或组织")
-    capabilities: Dict[str, Any] = Field(
-        default_factory=dict,
+    capabilities: ModelCapabilities = Field(
+        default_factory=ModelCapabilities,
         title="能力描述",
         description="该模型支持的能力（如 chat、completion、streaming、最大 token 数等）"
     )
