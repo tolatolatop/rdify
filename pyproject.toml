@@ -1,6 +1,6 @@
 [project]
-name = "dify-llvm"
-version = "0.1.0"
+name = "rdify"
+version = "0.2.0"
 description = ""
 authors = [
     {name = "tolatolatop",email = "tolatolatop@gmail.com"}
