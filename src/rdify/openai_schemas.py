@@ -140,8 +140,8 @@ class ChatCompletionRequest(BaseModel):
         None, title="用户标识", description="调用方提供的用户 ID（用于审计 / 日志）"
     )
     # 若支持 function-calling，可加以下字段：
-    # functions: Optional[List[FunctionSpec]] = Field(None, title="函数定义列表", description="可调用的函数接口定义")
-    # function_call: Optional[Union[Literal["none","auto"], Dict[str,Any]]] = Field(None, title="函数调用控制", description="控制函数调用行为 (none / auto / 指定函数名)")
+    functions: Optional[List[Any]] = Field(None, title="函数定义列表", description="可调用的函数接口定义")
+    function_call: Optional[Union[Literal["none","auto"], Dict[str,Any]]] = Field(None, title="函数调用控制", description="控制函数调用行为 (none / auto / 指定函数名)")
 
 
 class CompletionRequest(BaseModel):

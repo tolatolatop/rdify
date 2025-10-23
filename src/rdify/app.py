@@ -63,6 +63,7 @@ async def get_model(model_id: str):
 
 @app.post("/v1/chat/completions")
 async def chat_completions(req: ChatCompletionRequest, request: Request):
+    logger.debug(f"body: {await request.body()}")
     logger.debug(f"ChatCompletionRequest: {req}")
     # 校验 model 是否支持 chat
     info = MODEL_REGISTRY.get_model_info(req.model)

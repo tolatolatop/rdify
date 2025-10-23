@@ -26,6 +26,11 @@ handlers:
     filename: logs/tests.log
     formatter: standard
 
+  input_handler:
+    class: logging.FileHandler
+    filename: logs/req_input.log
+    formatter: standard
+
 loggers:
   rdify:
     level: DEBUG
@@ -40,4 +45,9 @@ loggers:
   rdify.cancel_scope:
     level: DEBUG
     handlers: [anyio_handler]
+    propagate: false
+
+  rdify.req.input:
+    level: DEBUG
+    handlers: [input_handler]
     propagate: false

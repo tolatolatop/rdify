@@ -9,6 +9,7 @@ from ..models import ModelInterface, ModelInfo, ModelCapabilities, ModelRegistry
 
 
 logger = logging.getLogger("rdify.apps.fake_llvm")
+req_input_logger = logging.getLogger("rdify.req.input")
 
 async def redirect_llm_stream(messages: list[ChatMessage]):
     client = OpenAI(api_key=os.getenv("MOONSHOT_API_KEY"), base_url=os.getenv("MOONSHOT_URL"))
@@ -23,7 +24,7 @@ async def redirect_llm_stream(messages: list[ChatMessage]):
 
 
 async def redirect_llm_stream_chat(req: ChatCompletionRequest, **kwargs):
-    logger.info(f"Redirecting chat: {req.messages}")
+    req_input_logger.info(f"Redirecting chat: {req.model_dump_json()}")
     async for chunk in redirect_llm_stream(req.messages):
         yield chunk
 
