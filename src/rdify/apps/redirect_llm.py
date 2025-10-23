@@ -18,7 +18,7 @@ async def redirect_llm_stream(messages: list[ChatMessage]):
         stream=True
     )
     for chunk in resp:
-        logger.info(f"Redirecting chunk: {chunk}")
+        logger.debug(f"Redirecting chunk: {chunk}")
         yield chunk
 
 

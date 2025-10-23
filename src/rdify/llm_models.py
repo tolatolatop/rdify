@@ -48,11 +48,15 @@ def chat_event(req: ChatCompletionRequest, resp: ChatCompletionResponse, **kwarg
             chunk_gen = await invoke_chat(req, cancel_scope=cancel_scope, **kwargs)
             async for chunk in chunk_gen:
                 # chunk 是 ChatCompletionChoice 类型，其中 delta 不为 None
-                resp.choices = [chunk]
+                logger.debug(f"Chunk: {chunk}")
+                if hasattr(chunk, "choices"):
+                    choices = chunk.choices
+                else:
+                    choices = [chunk]
+                resp.choices = choices
                 content = resp.model_dump_json()
                 await cancel_scope.wait()
                 yield "data: " + content + "\n\n"
-                logger.debug(f"Chunk: {content}")
         msg = ChatCompletionChoice(
             index=0,
             message=ChatMessage(role="assistant", content=""),
