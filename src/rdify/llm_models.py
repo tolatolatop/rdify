@@ -7,6 +7,7 @@ from .models import ModelRegistry, ModelInterface
 from .utils.cancel_scope import CancelScope
 
 logger = logging.getLogger("rdify.llm_models")
+output_logger = logging.getLogger("rdify.chat")
 
 MODEL_REGISTRY = ModelRegistry()
 
@@ -75,7 +76,12 @@ def chat_event(req: ChatCompletionRequest, resp: ChatCompletionResponse, **kwarg
             yield "data: [DONE]\n\n"
         else:
             yield "data: [DONE]\n\n"
-    return event_generator
+    
+    async def output_generator():
+        async for data in event_generator():
+            output_logger.info(data.strip())
+            yield data
+    return output_generator
 
 
 def completion_event(req: CompletionRequest, resp: CompletionResponse, **kwargs):

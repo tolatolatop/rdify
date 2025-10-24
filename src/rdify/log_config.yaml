@@ -31,6 +31,11 @@ handlers:
     filename: logs/req_input.log
     formatter: standard
 
+  chat_handler:
+    class: logging.FileHandler
+    filename: logs/chat.log
+    formatter: standard
+
 loggers:
   rdify:
     level: DEBUG
@@ -50,4 +55,9 @@ loggers:
   rdify.req.input:
     level: DEBUG
     handlers: [input_handler]
+    propagate: false
+
+  rdify.chat:
+    level: DEBUG
+    handlers: [chat_handler]
     propagate: false
