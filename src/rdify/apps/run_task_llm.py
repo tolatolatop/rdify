@@ -1,5 +1,6 @@
 import pickle
 import logging
+import re
 import os
 from datetime import datetime
 from functools import wraps
@@ -18,11 +19,15 @@ class TaskIsFinishedResponse(BaseModel):
     is_finished: bool = Field(..., description="Whether the task is finished")
     message: str = Field(..., description="The message from the assistant")
 
+def remove_thinking_content(task_log: str) -> str:
+    reg = re.compile(r"<think>.*?</think>", re.DOTALL)
+    return re.sub(reg, "", task_log)
 
 def check_run_task_is_finished(task_log: str) -> TaskIsFinishedResponse:
     """
     使用ChatOpenAI检查日志
     """
+    task_log = remove_thinking_content(task_log)
     logger.debug(f"Checking if the task is finished: {len(task_log)}")
     llm = ChatOpenAI(model=os.getenv("MOONSHOT_MODEL"), temperature=0, base_url=os.getenv("MOONSHOT_URL"), api_key=os.getenv("MOONSHOT_API_KEY"))
     llm = llm.with_structured_output(TaskIsFinishedResponse)
