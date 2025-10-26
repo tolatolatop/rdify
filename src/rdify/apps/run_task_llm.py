@@ -51,14 +51,15 @@ def convert_conversation_to_task_log(conversation: list) -> str:
     """
     将会话转换为日志字符串
     """
-    output = "".join(map(map_message_to_string, conversation))
+    req = convert_conversation_to_chat_completion_request(conversation)
+    output = "".join(map(map_message_to_string, [req]))
     return output
 
 def check_conversation_is_finished(conversation: list) -> TaskIsFinishedResponse:
     """
     检查会话是否结束
     """
-    task_log = "\n".join([f"{message.role}: {message.content}" for message in conversation])
+    task_log = convert_conversation_to_task_log(conversation)
     return check_run_task_is_finished(task_log)
 
 
@@ -78,18 +79,60 @@ def dump_conversation(func):
     return wrapper
 
 
+def convert_conversation_to_chat_completion_request(conversation: list) -> ChatCompletionRequest:
+    """
+    将会话转换为ChatCompletionRequest
+    """
+    messages = []
+    if not isinstance(conversation[0], ChatCompletionRequest):
+        raise ValueError("Conversation must start with a ChatCompletionRequest")
+    buffer_message = None
+    for message in conversation:
+        if isinstance(message, ChatCompletionRequest):
+            messages.extend(message.messages)
+        elif isinstance(message, ChatCompletionChoice):
+            messages.append(message.message)
+        elif isinstance(message, ChatCompletionChunk):
+            buffer_message = message_add_chunk(message, buffer_message)
+            if buffer_message is not None and buffer_message not in messages:
+                messages.append(buffer_message)
+        else:
+            raise ValueError(f"Unsupported message type: {type(message)}")
+    resp = conversation[0].model_copy(update={"messages": messages}, deep=True)
+    return resp
+
+def message_add_chunk(chunk: ChatCompletionChunk, message: ChatMessage = None) -> ChatMessage:
+    if message is None:
+        if chunk.choices[0].delta.role is None:
+            logger.warning("Role is required")
+            return None
+        message = ChatMessage(role=chunk.choices[0].delta.role, content=chunk.choices[0].delta.content)
+    else:
+        message.content += chunk.choices[0].delta.content or ""
+    return message
+
 def continue_stream(loop_count = 3):
     def decorator(func):
         @wraps(func)
         async def wrapper(req: ChatCompletionRequest, **kwargs):
             conversation = [req]
+            task_is_finished = False
             for i in range(loop_count):
                 logger.info(f"Continue stream loop {i}")
                 async for chunk in func(req, **kwargs):
-                    conversation.append(chunk)
-                    yield chunk
-                task_is_finished = check_conversation_is_finished(conversation)
-                if task_is_finished.is_finished:
+                    if isinstance(chunk, ChatCompletionChunk) and chunk.choices[0].finish_reason is not None:
+                        resp = check_conversation_is_finished(conversation)
+                        if resp.is_finished:
+                            conversation.append(chunk)
+                            task_is_finished = True
+                            yield chunk
+                            break
+                        else:
+                            req = convert_conversation_to_chat_completion_request(conversation)
+                    else:
+                        conversation.append(chunk)
+                        yield chunk
+                if task_is_finished:
                     break
         return wrapper
     return decorator
