@@ -1,10 +1,12 @@
 import pickle
 from pathlib import Path
+from unittest.mock import patch
 from rdify.openai_schemas import ChatCompletionRequest
 from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
 from rdify.config import logs_dir
 from rdify.apps.run_task_llm import check_run_task_is_finished
 from rdify.apps import run_task_llm
+from rdify.apps.run_task_llm import TaskIsFinishedResponse
 
 def test_check_run_task_is_finished():
     task_log = """
@@ -93,3 +95,20 @@ def test_convert_conversation_to_chat_completion_request():
     req = run_task_llm.convert_conversation_to_chat_completion_request(conversation)
     assert isinstance(req, ChatCompletionRequest)
     print(run_task_llm.map_message_to_string(req))
+
+
+@patch(
+    "rdify.apps.run_task_llm.check_run_task_is_finished",
+    return_value=TaskIsFinishedResponse(is_finished=True, message="Task is finished")
+)
+def test_check_conversation_is_finished(mock_check_run_task_is_finished):
+    file_path = logs_dir / "conversation_20251026064326_554669.pkl"
+    conversation = pickle.loads(file_path.read_bytes())
+    resp = run_task_llm.check_conversation_is_finished(conversation)
+    assert resp.is_finished
+    assert resp.message == "Task is finished"   
+
+    file_path = logs_dir / "conversation_20251026064321_644306.pkl"
+    conversation = pickle.loads(file_path.read_bytes())
+    resp = run_task_llm.check_conversation_is_finished(conversation)
+    mock_check_run_task_is_finished.assert_called_once()

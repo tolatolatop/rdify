@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 from ..openai_schemas import ChatCompletionRequest
 from ..models import ModelInterface, ModelInfo, ModelCapabilities, ModelRegistry
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('rdify')
 
 class TaskIsFinishedResponse(BaseModel):
     is_finished: bool = Field(..., description="Whether the task is finished")
@@ -23,9 +23,11 @@ def check_run_task_is_finished(task_log: str) -> TaskIsFinishedResponse:
     """
     使用ChatOpenAI检查日志
     """
+    logger.debug(f"Checking if the task is finished: {len(task_log)}")
     llm = ChatOpenAI(model=os.getenv("MOONSHOT_MODEL"), temperature=0, base_url=os.getenv("MOONSHOT_URL"), api_key=os.getenv("MOONSHOT_API_KEY"))
     llm = llm.with_structured_output(TaskIsFinishedResponse)
-    resp = llm.invoke(f"Check if the task is finished: {task_log}")
+    resp = llm.invoke(f"Check if the task is finished: <task_log>{task_log}</task_log>")
+    logger.debug(f"Task {len(task_log)} is finished: {resp}")
     return resp
 
 
@@ -60,6 +62,8 @@ def check_conversation_is_finished(conversation: list) -> TaskIsFinishedResponse
     检查会话是否结束
     """
     task_log = convert_conversation_to_task_log(conversation)
+    if task_log.strip().endswith("</tool_use>"):
+        return TaskIsFinishedResponse(is_finished=True, message="Task is finished")
     return check_run_task_is_finished(task_log)
 
 
@@ -138,7 +142,7 @@ def continue_stream(loop_count = 3):
     return decorator
 
 @dump_conversation
-# @continue_stream(loop_count=3)
+@continue_stream(loop_count=3)
 async def run_task_llm_stream_chat(req: ChatCompletionRequest, **kwargs):
     async for chunk in redirect_llm_stream_chat(req, **kwargs):
         yield chunk
