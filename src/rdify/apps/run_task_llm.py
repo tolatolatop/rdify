@@ -4,6 +4,8 @@ import os
 from datetime import datetime
 from functools import wraps
 from rdify.config import logs_dir
+from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
+from rdify.openai_schemas import ChatCompletionRequest, ChatCompletionChoice, ChatMessage
 from .redirect_llm import redirect_llm_stream_chat
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
@@ -27,6 +29,36 @@ def check_run_task_is_finished(task_log: str) -> TaskIsFinishedResponse:
     return resp
 
 
+def convert_conversation_to_task_log(conversation: list) -> str:
+    """
+    将会话转换为日志字符串
+    """
+    output = ""
+    for message in conversation:
+        if isinstance(message, ChatCompletionRequest):
+            for message in message.messages:
+                output += f"\n{message.role}: {message.content}"
+        elif isinstance(message, ChatCompletionChoice):
+            choice = message.choice[0]
+            output += f"\n{choice.message.role}: {choice.message.content}"
+        elif isinstance(message, ChatCompletionChunk):
+            choice = message.choices[0]
+            if choice.delta.role is not None:
+                output += f"\n{choice.delta.role}: {choice.delta.content}"
+            else:
+                output += f"{choice.delta.content}"
+        else:
+            raise ValueError(f"Unsupported message type: {type(message)}")
+    return output
+
+def check_conversation_is_finished(conversation: list) -> TaskIsFinishedResponse:
+    """
+    检查会话是否结束
+    """
+    task_log = "\n".join([f"{message.role}: {message.content}" for message in conversation])
+    return check_run_task_is_finished(task_log)
+
+
 def dump_conversation(func):
     @wraps(func)
     async def wrapper(req: ChatCompletionRequest, **kwargs):
@@ -42,7 +74,25 @@ def dump_conversation(func):
             logger.error(f"Error dumping conversation: {e}")
     return wrapper
 
+
+def continue_stream(loop_count = 3):
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(req: ChatCompletionRequest, **kwargs):
+            conversation = [req]
+            for i in range(loop_count):
+                logger.info(f"Continue stream loop {i}")
+                async for chunk in func(req, **kwargs):
+                    conversation.append(chunk)
+                    yield chunk
+                task_is_finished = check_conversation_is_finished(conversation)
+                if task_is_finished.is_finished:
+                    break
+        return wrapper
+    return decorator
+
 @dump_conversation
+# @continue_stream(loop_count=3)
 async def run_task_llm_stream_chat(req: ChatCompletionRequest, **kwargs):
     async for chunk in redirect_llm_stream_chat(req, **kwargs):
         yield chunk
