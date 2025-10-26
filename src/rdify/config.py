@@ -15,6 +15,9 @@ with open(PACKAGE_ROOT / "log_config.yaml", "r") as f:
 logs_dir = Path('.') / "logs"
 logs_dir.mkdir(parents=True, exist_ok=True)
 
+conversation_dir = Path('.') / "logs" / "conversations"
+conversation_dir.mkdir(parents=True, exist_ok=True)
+
 logging.config.dictConfig(config)
 
 config = {}

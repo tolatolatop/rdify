@@ -4,7 +4,7 @@ import re
 import os
 from datetime import datetime
 from functools import wraps
-from rdify.config import logs_dir
+from rdify.config import conversation_dir
 from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
 from rdify.openai_schemas import ChatCompletionRequest, ChatCompletionChoice, ChatMessage
 from .redirect_llm import redirect_llm_stream_chat
@@ -81,7 +81,7 @@ def dump_conversation(func):
             conversation.append(chunk)
             yield chunk
         try:
-            with open(logs_dir / f"{conversation_id}.pkl", "wb") as f:
+            with open(conversation_dir / f"{conversation_id}.pkl", "wb") as f:
                 pickle.dump(conversation, f)
         except Exception as e:
             logger.error(f"Error dumping conversation: {e}")
