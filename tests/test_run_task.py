@@ -1,5 +1,6 @@
 import pickle
 from pathlib import Path
+from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
 from rdify.config import logs_dir
 from rdify.apps.run_task_llm import check_run_task_is_finished
 from rdify.apps import run_task_llm
@@ -78,5 +79,8 @@ def test_check_run_task_is_finished():
 def test_convert_conversation_to_task_log():
     file_path = logs_dir / "conversation_20251026064326_554669.pkl"
     conversation = pickle.loads(file_path.read_bytes())
+    assert isinstance(conversation[-1], ChatCompletionChunk)
+    last_chunk = conversation[-1]
+    assert last_chunk.choices[0].finish_reason == "stop"
     task_log = run_task_llm.convert_conversation_to_task_log(conversation)
     print(task_log)
