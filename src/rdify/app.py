@@ -14,7 +14,7 @@ from .llm_models import MODEL_REGISTRY
 from .llm_models import invoke_chat, invoke_completion
 from .config import config
 from .apps.fake_llvm import register_fake_llvm
-from .apps import dify, redirect_llm
+from .apps import dify, redirect_llm, run_task_llm
 from .llm_models import chat_event, completion_event
 
 def register_all_models():
@@ -22,6 +22,7 @@ def register_all_models():
     register_fake_llvm(MODEL_REGISTRY)
     dify.register_all_models(MODEL_REGISTRY)
     redirect_llm.register_redirect_llm(MODEL_REGISTRY)
+    run_task_llm.register_run_task_llm(MODEL_REGISTRY)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
