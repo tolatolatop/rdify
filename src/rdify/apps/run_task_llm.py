@@ -29,26 +29,29 @@ def check_run_task_is_finished(task_log: str) -> TaskIsFinishedResponse:
     return resp
 
 
+def map_message_to_string(message) -> str:
+    output = ""
+    if isinstance(message, ChatCompletionRequest):
+        for message in message.messages:
+            output += f"\n{message.role}: {message.content}"
+    elif isinstance(message, ChatCompletionChoice):
+        choice = message.choice[0]
+        output += f"\n{choice.message.role}: {choice.message.content}"
+    elif isinstance(message, ChatCompletionChunk):
+        choice = message.choices[0]
+        if choice.delta.role is not None:
+            output += f"\n{choice.delta.role}: {choice.delta.content}"
+        else:
+            output += f"{choice.delta.content}"
+    else:
+        raise ValueError(f"Unsupported message type: {type(message)}")
+    return output
+
 def convert_conversation_to_task_log(conversation: list) -> str:
     """
     将会话转换为日志字符串
     """
-    output = ""
-    for message in conversation:
-        if isinstance(message, ChatCompletionRequest):
-            for message in message.messages:
-                output += f"\n{message.role}: {message.content}"
-        elif isinstance(message, ChatCompletionChoice):
-            choice = message.choice[0]
-            output += f"\n{choice.message.role}: {choice.message.content}"
-        elif isinstance(message, ChatCompletionChunk):
-            choice = message.choices[0]
-            if choice.delta.role is not None:
-                output += f"\n{choice.delta.role}: {choice.delta.content}"
-            else:
-                output += f"{choice.delta.content}"
-        else:
-            raise ValueError(f"Unsupported message type: {type(message)}")
+    output = "".join(map(map_message_to_string, conversation))
     return output
 
 def check_conversation_is_finished(conversation: list) -> TaskIsFinishedResponse:
