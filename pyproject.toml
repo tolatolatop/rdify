@@ -6,7 +6,7 @@ authors = [
     {name = "tolatolatop",email = "tolatolatop@gmail.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<4.0"
 dependencies = [
     "pydify @ git+https://github.com/jayscoder/pydify.git",
     "fastapi[standard] (>=0.118.0,<0.119.0)",
@@ -14,7 +14,9 @@ dependencies = [
     "uvicorn (>=0.37.0,<0.38.0)",
     "openai (>=2.1.0,<3.0.0)",
     "python-dotenv (>=1.1.1,<2.0.0)",
-    "ruamel-yaml (>=0.18.15,<0.19.0)"
+    "ruamel-yaml (>=0.18.15,<0.19.0)",
+    "langchain (>=1.0.2,<2.0.0)",
+    "langchain-openai (>=1.0.1,<2.0.0)"
 ]
 
 [tool.poetry]

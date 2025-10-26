@@ -1,13 +1,31 @@
 import pickle
 import logging
+import os
 from datetime import datetime
 from functools import wraps
 from rdify.config import logs_dir
 from .redirect_llm import redirect_llm_stream_chat
+from langchain_openai import ChatOpenAI
+from pydantic import BaseModel, Field
 from ..openai_schemas import ChatCompletionRequest
 from ..models import ModelInterface, ModelInfo, ModelCapabilities, ModelRegistry
 
 logger = logging.getLogger(__name__)
+
+class TaskIsFinishedResponse(BaseModel):
+    is_finished: bool = Field(..., description="Whether the task is finished")
+    message: str = Field(..., description="The message from the assistant")
+
+
+def check_run_task_is_finished(task_log: str) -> TaskIsFinishedResponse:
+    """
+    使用ChatOpenAI检查日志
+    """
+    llm = ChatOpenAI(model=os.getenv("MOONSHOT_MODEL"), temperature=0, base_url=os.getenv("MOONSHOT_URL"), api_key=os.getenv("MOONSHOT_API_KEY"))
+    llm = llm.with_structured_output(TaskIsFinishedResponse)
+    resp = llm.invoke(f"Check if the task is finished: {task_log}")
+    return resp
+
 
 def dump_conversation(func):
     @wraps(func)
