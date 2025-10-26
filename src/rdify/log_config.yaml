@@ -36,6 +36,11 @@ handlers:
     filename: logs/chat.log
     formatter: standard
 
+  task_handler
+    class: logging.FileHandler
+    filename: logs/task.log
+    formatter: standard
+
 loggers:
   rdify:
     level: DEBUG
@@ -60,4 +65,9 @@ loggers:
   rdify.chat:
     level: DEBUG
     handlers: [chat_handler]
+    propagate: false
+
+  rdify.task:
+    level: DEBUG
+    handlers: [task_handler]
     propagate: false

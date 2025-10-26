@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 from ..openai_schemas import ChatCompletionRequest
 from ..models import ModelInterface, ModelInfo, ModelCapabilities, ModelRegistry
 
-logger = logging.getLogger('rdify')
+logger = logging.getLogger('rdify.task')
 
 class TaskIsFinishedResponse(BaseModel):
     is_finished: bool = Field(..., description="Whether the task is finished")
